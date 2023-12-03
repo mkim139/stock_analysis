@@ -14,4 +14,4 @@ class customdataset(Dataset):
     def __getitem__(self, idx):
         sequence = self.seq[:,idx,:]
         target = self.target[idx]
-        return torch.tensor(sequence).float(),torch.tensor(target).long()
+        return torch.tensor(sequence).float(),torch.tensor(target).float()
