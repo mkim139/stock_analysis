@@ -16,6 +16,8 @@ def train(trainprice,trainvolume,valprice,valvolume,testprice,testvolume,learnin
     model_name = 'gru_model.pth'
     batch_size = 32
     epochs = 1000
+    tolerance = 50
+    init_tolerance = tolerance
     ssp = StandardScaler()
     ssv = StandardScaler()
     gru_model = model.model()
@@ -53,7 +55,7 @@ def train(trainprice,trainvolume,valprice,valvolume,testprice,testvolume,learnin
             optimizer.zero_grad()
             
             pred = gru_model(seq.permute(1,0,2).to(device))
-            loss = loss_fn(pred[0].flatten(),target.to(device))
+            loss = loss_fn(pred.flatten(),target.to(device))
 
             loss.backward()
             optimizer.step()
@@ -67,9 +69,9 @@ def train(trainprice,trainvolume,valprice,valvolume,testprice,testvolume,learnin
         for bi, (seq,target) in enumerate(valdataloader):
  
             pred = gru_model(seq.permute(1,0,2).to(device))
-            loss = loss_fn(pred[0].flatten(),target.to(device))
+            loss = loss_fn(pred.flatten(),target.to(device))
             valloss.append(loss.item())
-        valpreds += pred[0].detach().cpu().numpy().flatten().tolist()
+        valpreds += pred.detach().cpu().numpy().flatten().tolist()
         valloss = np.mean(valloss)
 
         if (epoch % 50) == 0:
@@ -77,16 +79,22 @@ def train(trainprice,trainvolume,valprice,valvolume,testprice,testvolume,learnin
         if valloss < globalvalloss:
             torch.save(gru_model.state_dict(),checkpointdir+model_name)
             globalvalloss = valloss
+            tolerance = init_tolerance
+        else:
+            tolerance -= 1
+            
+        if tolerance==0:
+            break
 
     gru_model.load_state_dict(torch.load(checkpointdir+model_name,map_location=device))
     testpreds = []
     testloss = []
     for bi, (seq,target) in enumerate(testdataloader):
         pred = gru_model(seq.permute(1,0,2).to(device))
-        loss = loss_fn(pred[0].flatten(),target.to(device))
+        loss = loss_fn(pred.flatten(),target.to(device))
         testloss.append(loss.item())
     testloss = np.mean(testloss)
-    testpreds += pred[0].detach().cpu().numpy().flatten().tolist()
+    testpreds += pred.detach().cpu().numpy().flatten().tolist()
     print('Epoch:',epoch,'test loss:',round(testloss,3))
 
     return (valY,valpreds), (testY,testpreds)
